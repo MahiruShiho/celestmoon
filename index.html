@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Control Panel (Frontend)</title>
+  <style>
+    body { font-family: Inter, system-ui, sans-serif; background:#0b1220; color:#e6eef8; margin:0; }
+    header { padding:16px 24px; background:#0f1724; font-weight:700; }
+    .wrap { padding:24px; max-width:1000px; margin:0 auto; }
+    .card { background:#0f172b; padding:16px; border-radius:10px; margin-bottom:12px; box-shadow:0 4px 18px rgba(0,0,0,0.4);}
+    button { background:#2563eb; color:#fff; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; }
+    .muted { color:#9aa7bf; font-size:0.9rem; }
+  </style>
+</head>
+<body>
+  <header>My Control Panel (Frontend)</header>
+  <div class="wrap">
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
+      <button id="refreshBtn">Refresh Servers</button>
+      <div class="muted">Note: actions go through your secure backend proxy.</div>
+    </div>
+
+    <div id="serversContainer"></div>
+  </div>
+
+  <script>
+    async function fetchServers() {
+      const container = document.getElementById('serversContainer');
+      container.innerHTML = '<div class="card muted">Loading…</div>';
+      try {
+        const res = await fetch('/api/servers'); // PROXY endpoint (Express backend)
+        if (!res.ok) throw new Error('Gagal mengambil data ('+res.status+')');
+        const data = await res.json();
+        // Pterodactyl returns data.data array for listing servers
+        const servers = (data && data.data) ? data.data : [];
+        if (!servers.length) {
+          container.innerHTML = '<div class="card muted">Tidak ada server.</div>';
+          return;
+        }
+        container.innerHTML = servers.map(s => {
+          const name = s.attributes ? s.attributes.name : (s.name||'Server');
+          const uuid = s.attributes ? s.attributes.uuid : s.uuid;
+          const status = (s.attributes && s.attributes.is_suspended) ? 'Suspended' : 'Active';
+          return `
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                  <div style="font-weight:700">${name}</div>
+                  <div class="muted">UUID: ${uuid}</div>
+                  <div class="muted">Status: ${status}</div>
+                </div>
+                <div style="display:flex;gap:8px;">
+                  <button onclick="action('${uuid}','start')">Start</button>
+                  <button onclick="action('${uuid}','stop')">Stop</button>
+                  <button onclick="action('${uuid}','restart')">Restart</button>
+                </div>
+              </div>
+            </div>`;
+        }).join('');
+      } catch (e) {
+        container.innerHTML = '<div class="card muted">Error: '+e.message+'</div>';
+      }
+    }
+
+    async function action(uuid, cmd) {
+      if (!confirm(`Kirim perintah "${cmd}" ke server ${uuid}?`)) return;
+      try {
+        const res = await fetch(`/api/servers/${uuid}/action`, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({command: cmd})
+        });
+        const json = await res.json();
+        alert('Response: ' + (json && json.message ? json.message : JSON.stringify(json)));
+        fetchServers();
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', fetchServers);
+    // auto load
+    fetchServers();
+  </script>
+</body>
+</html>
