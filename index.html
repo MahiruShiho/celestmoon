@@ -18,30 +18,35 @@
   <div class="wrap">
     <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
       <button id="refreshBtn">Refresh Servers</button>
-      <div class="muted">Note: actions go through your secure backend proxy.</div>
+      <div class="muted">Note: actions go through your backend proxy at de21.spaceify.eu:25665</div>
     </div>
 
     <div id="serversContainer"></div>
   </div>
 
   <script>
+    // ===== KONFIGURASI BACKEND =====
+    const BACKEND_URL = "http://de21.spaceify.eu:25665"; // hosting Jupiter kamu
+
+    // ===== AMBIL DAFTAR SERVER =====
     async function fetchServers() {
       const container = document.getElementById('serversContainer');
       container.innerHTML = '<div class="card muted">Loading…</div>';
       try {
-        const res = await fetch('https://panel.spaceify.eu//api/servers'); // PROXY endpoint (Express backend)
-        if (!res.ok) throw new Error('Gagal mengambil data ('+res.status+')');
+        const res = await fetch(`${BACKEND_URL}/api/servers`);
+        if (!res.ok) throw new Error('Gagal mengambil data (' + res.status + ')');
         const data = await res.json();
-        // Pterodactyl returns data.data array for listing servers
+
         const servers = (data && data.data) ? data.data : [];
         if (!servers.length) {
           container.innerHTML = '<div class="card muted">Tidak ada server.</div>';
           return;
         }
+
         container.innerHTML = servers.map(s => {
-          const name = s.attributes ? s.attributes.name : (s.name||'Server');
-          const uuid = s.attributes ? s.attributes.uuid : s.uuid;
-          const status = (s.attributes && s.attributes.is_suspended) ? 'Suspended' : 'Active';
+          const name = s.attributes?.name || s.name || 'Server';
+          const uuid = s.attributes?.uuid || s.uuid;
+          const status = s.attributes?.is_suspended ? 'Suspended' : 'Active';
           return `
             <div class="card">
               <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -59,20 +64,21 @@
             </div>`;
         }).join('');
       } catch (e) {
-        container.innerHTML = '<div class="card muted">Error: '+e.message+'</div>';
+        container.innerHTML = `<div class="card muted">Error: ${e.message}</div>`;
       }
     }
 
+    // ===== FUNGSI START/STOP/RESTART =====
     async function action(uuid, cmd) {
       if (!confirm(`Kirim perintah "${cmd}" ke server ${uuid}?`)) return;
       try {
-        const res = await fetch(`/api/servers/${uuid}/action`, {
+        const res = await fetch(`${BACKEND_URL}/api/servers/${uuid}/action`, {
           method: 'POST',
           headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({command: cmd})
+          body: JSON.stringify({ command: cmd })
         });
         const json = await res.json();
-        alert('Response: ' + (json && json.message ? json.message : JSON.stringify(json)));
+        alert('Response: ' + (json?.message || JSON.stringify(json)));
         fetchServers();
       } catch (e) {
         alert('Error: ' + e.message);
@@ -80,7 +86,6 @@
     }
 
     document.getElementById('refreshBtn').addEventListener('click', fetchServers);
-    // auto load
     fetchServers();
   </script>
 </body>
