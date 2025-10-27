@@ -29,7 +29,7 @@
       const container = document.getElementById('serversContainer');
       container.innerHTML = '<div class="card muted">Loading…</div>';
       try {
-        const res = await fetch('/api/servers'); // PROXY endpoint (Express backend)
+        const res = await fetch('https://panel.spaceify.eu//api/servers'); // PROXY endpoint (Express backend)
         if (!res.ok) throw new Error('Gagal mengambil data ('+res.status+')');
         const data = await res.json();
         // Pterodactyl returns data.data array for listing servers
